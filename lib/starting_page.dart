@@ -1,95 +1,65 @@
-import 'package:dapp/navigationbar/navigation_page.dart';
 import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
-import 'package:reown_appkit/modal/appkit_modal_impl.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:reown_appkit/reown_appkit.dart';
+import 'screens/auth/login_page.dart';
+import 'screens/auth/signup_page.dart';
+import 'providers/auth_provider.dart';
+import 'navigationbar/home_page.dart';
 
 class StartingPage extends StatefulWidget {
+  const StartingPage({super.key});
+
   @override
-  State<StartingPage> createState() => _MyStartingPageState();
+  State<StartingPage> createState() => _StartingPageState();
 }
 
-class _MyStartingPageState extends State<StartingPage> {
-  late ReownAppKitModal _appKitModal;
-  bool _isLoading = true;
-  String? _errorMessage;
+class _StartingPageState extends State<StartingPage> {
 
   @override
   void initState() {
     super.initState();
-    _initializeAppKit();
+
+    _checkAuth();
   }
 
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    _appKitModal.removeListener(_handleConnectionChange);
-    super.dispose();
-  }
-
-  void _handleConnectionChange(){
-      if(_appKitModal.isConnected){
-        _navigateToDashboard();
+  Future<void> _checkAuth() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    await auth.checkAuthStatus();
+    
+    if (auth.isAuthenticated && !auth.needsWalletConnection) {
+      if (mounted) {
+        await auth.initAppKit(context);
+        
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => HomePage(auth.appKitModal!)),
+          );
+        }
       }
+    }
   }
-
-  void _navigateToDashboard() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => NavigationPage(_appKitModal),
-      ),
-    );
-  }
-
-  Future<void> _initializeAppKit() async {
-      _appKitModal = ReownAppKitModal(
-        context: context,
-        projectId: 'ff261773380c8b4378cba48bc91260aa',
-        metadata: const PairingMetadata(
-          name: 'DALRC',
-          description: 'Decentralized Legal Document Storage',
-          url: 'https://dalrc.com',
-          icons: ['https://dalrc.com/logo.png'],
-          redirect: Redirect(
-            native: 'dalrc://',
-            universal: 'https://dalrc.com/wallet',
-            linkMode: true,
-          ),
-        ),
-      );
-
-      _appKitModal.addListener(_handleConnectionChange);
-
-      await _appKitModal.init();
-
-      setState((){
-      _isLoading = false;
-    });
-
-      if(_appKitModal.isConnected){
-        _navigateToDashboard();
-      }
-  }
-
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-
+                // 3D Vault Asset
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withOpacity(0.2),
+                        color: Colors.blue.withOpacity(0.15),
                         blurRadius: 30,
                         spreadRadius: 5,
                       ),
@@ -97,10 +67,11 @@ class _MyStartingPageState extends State<StartingPage> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: SizedBox(
-                      width: 300,
-                      height: 300,
+                    child: const SizedBox(
+                      width: 260,
+                      height: 260,
                       child: ModelViewer(
+                        disableTap: true,
                         src: 'assets/vault.glb',
                         backgroundColor: Colors.transparent,
                         autoRotate: true,
@@ -108,97 +79,107 @@ class _MyStartingPageState extends State<StartingPage> {
                         shadowIntensity: 1,
                         ar: false,
                         loading: Loading.eager,
-
                       ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 32),
 
                 // App Title
-                const Text(
+                Text(
                   'DALRC',
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.blue.shade800,
+                    letterSpacing: 1.5,
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
-                // Subtitle
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     'Your Personalised e-Vault for Legal Documents',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: Colors.grey.shade600,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 48),
 
-                // Connection Status
-                if (_isLoading)
-                  Column(
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Initializing wallet connection...',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                        ),
+                // Login Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => LoginPage()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade800,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
-                  )
-                else if (_errorMessage != null)
-                  Column(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 40,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.red,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _initializeAppKit,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  )
-                else
-                  SizedBox(
-                    width: double.infinity,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
-                      child: AppKitModalConnectButton(
-                        appKit: _appKitModal,
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Login',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
+                ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Footer Text
-                const Text(
+                // Sign Up Button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => SignupPage()),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue.shade800,
+                      side: BorderSide(color: Colors.blue.shade800, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Sign Up',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                Text(
                   'Secure • Immutable • Decentralized',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
+                  style: GoogleFonts.inter(
+                    color: Colors.grey.shade500,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
