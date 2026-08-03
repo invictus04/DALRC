@@ -42,6 +42,7 @@ class AuthProvider with ChangeNotifier {
       ),
     );
     await _appKitModal!.init();
+    notifyListeners();
   }
 
   Future<void> login(String role, String identifier, String password) async {

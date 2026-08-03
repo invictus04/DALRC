@@ -41,6 +41,8 @@ dependencies:
   dio: ^5.11.0
   flutter_secure_storage: ^9.2.4
   google_fonts: ^8.2.1
+  file_picker: ^11.0.3
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +71,7 @@ flutter:
     - assets/contracts/MyContract.json
     - assets/vault.glb
     - assets/bank-locker.png
+    - .env
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

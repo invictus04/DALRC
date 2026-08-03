@@ -7,6 +7,7 @@ class UserModel {
   final String? userId;
   final bool isVerified;
   final String? walletAddress;
+  final String? employeeId;
 
   UserModel({
     required this.id,
@@ -15,6 +16,7 @@ class UserModel {
     required this.lastName,
     required this.phoneNumber,
     this.userId,
+    this.employeeId,
     this.isVerified = false,
     this.walletAddress,
   });
@@ -29,6 +31,7 @@ class UserModel {
       userId: json['userId'],
       isVerified: json['isVerified'] ?? false,
       walletAddress: json['walletAddress'],
+      employeeId: json['employeeId']
     );
   }
 }

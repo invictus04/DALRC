@@ -6,13 +6,25 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:dapp/starting_page.dart';
 import 'package:dapp/screens/auth/connect_wallet_page.dart';
 import 'package:dapp/providers/auth_provider.dart';
+import 'package:dapp/providers/user_search_provider.dart';
+import 'package:dapp/providers/personal_doc_provider.dart';
 import 'package:dapp/screens/auth/login_page.dart';
 
-void main() {
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuthStatus()),
+        ChangeNotifierProxyProvider<AuthProvider, UserSearchProvider>(
+          create: (_) => UserSearchProvider(),
+          update: (_, auth, prev) => (prev ?? UserSearchProvider())..updateAuth(auth),
+        ),
+        ChangeNotifierProvider(create: (_) => PersonalDocProvider()),
       ],
       child: const MyApp(),
     ),

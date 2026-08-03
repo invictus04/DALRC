@@ -1,9 +1,11 @@
+import 'package:dapp/screens/personal_documents_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reown_appkit/reown_appkit.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../screens/profile_page.dart';
+import '../screens/search/user_search_page.dart';
 
 class HomePage extends StatefulWidget {
   final ReownAppKitModal appKitModal;
@@ -26,7 +28,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   String _getAppBarTitle() {
-    if (_currentIndex == 1) return 'My Profile';
+    if (_currentIndex == 1) return 'Personal Documents';
+    if (_currentIndex == 2) return 'My Profile';
     
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final user = auth.user;
@@ -50,6 +53,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       const HomeView(),
+      const PersonalDocumentsPage(),
       const ProfilePage(),
     ];
 
@@ -60,10 +64,23 @@ class _HomePageState extends State<HomePage> {
           _getAppBarTitle(),
           style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.black87),
         ),
+        automaticallyImplyLeading: false,
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          if (Provider.of<AuthProvider>(context).user?.role.toLowerCase() == 'admin')
+            IconButton(
+              icon: const Icon(Icons.search, color: Colors.black87),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UserSearchPage()),
+                );
+              },
+            ),
+        ],
       ),
       body: IndexedStack(
         index: _currentIndex,
@@ -98,6 +115,11 @@ class _HomePageState extends State<HomePage> {
               icon: Icon(Icons.dashboard_outlined),
               activeIcon: Icon(Icons.dashboard_rounded),
               label: 'Dashboard',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.folder_shared_outlined),
+              activeIcon: Icon(Icons.folder_shared),
+              label: 'Docs',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),

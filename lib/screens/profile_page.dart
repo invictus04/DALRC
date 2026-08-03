@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:reown_appkit/reown_appkit.dart';
 import '../../providers/auth_provider.dart';
 import '../../starting_page.dart';
+import 'profile/update_password_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,6 +15,51 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   bool _isNavigating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (auth.appKitModal == null) {
+        auth.initAppKit(context).then((_) {
+          auth.appKitModal?.addListener(_onWalletConnectionChanged);
+        });
+      } else {
+        auth.appKitModal?.addListener(_onWalletConnectionChanged);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    auth.appKitModal?.removeListener(_onWalletConnectionChanged);
+    super.dispose();
+  }
+
+  void _onWalletConnectionChanged() async {
+    if (!mounted) return;
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final appKitModal = auth.appKitModal;
+    if (appKitModal?.isConnected == true) {
+      final chainId = appKitModal!.selectedChain?.chainId ?? '';
+      final nameSpace = NamespaceUtils.getNamespaceFromChain(chainId);
+      final address = appKitModal.session?.getAddress(nameSpace);
+      
+      if (address != null && address != auth.user?.walletAddress) {
+         final success = await auth.linkWallet(address);
+         if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: Text(success ? 'Wallet updated successfully' : (auth.error ?? 'Failed to update wallet')),
+               backgroundColor: success ? Colors.green : Colors.red,
+             ),
+           );
+         }
+      }
+    }
+  }
 
   Future<void> _logout() async {
     if (_isNavigating) return;
@@ -130,7 +177,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<AuthProvider>(context).user;
+    final auth = Provider.of<AuthProvider>(context);
+    final user = auth.user;
 
     if (user == null) {
       return const Center(child: CircularProgressIndicator());
@@ -194,6 +242,8 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildProfileItem(Icons.phone_outlined, 'Phone Number', user.phoneNumber, isVerified: user.isVerified),
             if (user.userId != null)
               _buildProfileItem(Icons.badge_outlined, 'User ID', user.userId!),
+            if (user.employeeId != null)
+              _buildProfileItem(Icons.badge_outlined, 'Employee ID', user.employeeId!),
             if (user.walletAddress != null)
               _buildProfileItem(Icons.account_balance_wallet_outlined, 'Wallet Address', 
                 '${user.walletAddress!.substring(0, 6)}...${user.walletAddress!.substring(user.walletAddress!.length - 4)}',
@@ -201,6 +251,57 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             
             const SizedBox(height: 32),
+
+            // Update Wallet Button
+            if (auth.appKitModal != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(100),
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade400, Colors.purple.shade400],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: AppKitModalConnectButton(
+                  appKit: auth.appKitModal!,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Change Password Button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const UpdatePasswordPage()),
+                  );
+                },
+                icon: const Icon(Icons.lock_reset),
+                label: Text('Change Password', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue.shade800,
+                  side: BorderSide(color: Colors.blue.shade800),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             
             // Logout Button
             SizedBox(
