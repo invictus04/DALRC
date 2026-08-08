@@ -1,41 +1,54 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dapp/features/cases/models/case_model.dart';
-import 'package:dapp/features/cases/models/case_doc_model.dart';
+import 'package:dapp/features/documents/models/get_document_model.dart';
 import 'package:dapp/features/auth/models/user_model.dart';
 import 'package:dapp/features/cases/models/audit_log_model.dart';
 import 'package:dapp/features/cases/providers/case_doc_provider.dart';
 import 'package:dapp/features/auth/providers/auth_provider.dart';
+import 'package:dapp/core/widgets/document_viewer_page.dart';
 import 'package:intl/intl.dart';
 
-class CaseDocOptionsSheet extends StatelessWidget {
+class CaseDocOptionsSheet extends StatefulWidget {
+  final BuildContext parentContext;
   final CaseModel caseItem;
-  final CaseDocModel document;
+  final Document document;
 
-  const CaseDocOptionsSheet({super.key, required this.caseItem, required this.document});
+  const CaseDocOptionsSheet({super.key, required this.parentContext, required this.caseItem, required this.document});
+
+  @override
+  State<CaseDocOptionsSheet> createState() => _CaseDocOptionsSheetState();
+}
+
+class _CaseDocOptionsSheetState extends State<CaseDocOptionsSheet> {
+  bool _isViewing = false;
 
   Future<void> _viewDocument(BuildContext context) async {
+    setState(() => _isViewing = true);
     final provider = Provider.of<CaseDocProvider>(context, listen: false);
+    final navigator = Navigator.of(context);
     
-    // Show a loading indicator in the bottom sheet while we fetch the URL
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fetching secure document link...')));
+    final url = await provider.viewDocument(widget.caseItem.id, widget.document.id);
     
-    final url = await provider.viewDocument(caseItem.id, document.id);
-    if (context.mounted) {
-      Navigator.pop(context); // Close the options sheet
+    if (mounted) {
+      setState(() => _isViewing = false);
       if (url != null && url.isNotEmpty) {
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not launch the document view.')),
-          );
-        }
+        navigator.pop();
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => DocumentViewerPage(
+              url: url,
+              fileType: widget.document.fileType,
+              title: widget.document.title,
+            ),
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(widget.parentContext).showSnackBar(
           const SnackBar(content: Text('Failed to view document.')),
         );
       }
@@ -48,17 +61,17 @@ class CaseDocOptionsSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CaseDocAuditLogSheet(docId: document.id, docTitle: document.title),
+      builder: (_) => CaseDocAuditLogSheet(docId: widget.document.id, docTitle: widget.document.title),
     );
   }
 
   void _managePermissions(BuildContext context) {
     Navigator.pop(context);
     showModalBottomSheet(
-      context: context,
+      context: widget.parentContext,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CaseDocPermissionsSheet(caseItem: caseItem, document: document),
+      builder: (_) => CaseDocPermissionsSheet(parentContext: widget.parentContext, caseItem: widget.caseItem, document: widget.document),
     );
   }
 
@@ -66,8 +79,12 @@ class CaseDocOptionsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final userWallet = auth.user?.walletAddress ?? '';
-    final canManage = userWallet == caseItem.adminWallet || userWallet == document.uploader;
-
+    log('user wallet: $userWallet');
+    log('case admin wallet: ${widget.caseItem.adminWallet}');
+    log('document uploader: ${widget.document.uploadedBy}');
+    final canManage = userWallet.toLowerCase() == widget.caseItem.adminWallet.toLowerCase() || 
+                      userWallet.toLowerCase() == widget.document.uploadedBy.toLowerCase();
+    
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -88,8 +105,13 @@ class CaseDocOptionsSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(document.title, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text('${(document.fileSize / 1024).toStringAsFixed(2)} KB • Uploaded by ${document.uploader.substring(0,6)}...', style: GoogleFonts.inter(color: Colors.grey, fontSize: 12)),
+                      Text(widget.document.title, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(
+                        '${(widget.document.fileSize / 1024).toStringAsFixed(2)} KB • Uploaded by ${widget.document.uploadedBy}',
+                        style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
@@ -99,9 +121,11 @@ class CaseDocOptionsSheet extends StatelessWidget {
           const SizedBox(height: 16),
           const Divider(),
           ListTile(
-            leading: Icon(Icons.visibility, color: Colors.blue.shade700),
-            title: Text('View Document', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-            onTap: () => _viewDocument(context),
+            leading: _isViewing 
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                : Icon(Icons.visibility, color: Colors.blue.shade700),
+            title: Text(_isViewing ? 'Fetching...' : 'View Document', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+            onTap: _isViewing ? null : () => _viewDocument(context),
           ),
           ListTile(
             leading: Icon(Icons.history, color: Colors.orange.shade700),
@@ -222,10 +246,11 @@ class _CaseDocAuditLogSheetState extends State<CaseDocAuditLogSheet> {
 }
 
 class CaseDocPermissionsSheet extends StatefulWidget {
+  final BuildContext parentContext;
   final CaseModel caseItem;
-  final CaseDocModel document;
+  final Document document;
 
-  const CaseDocPermissionsSheet({super.key, required this.caseItem, required this.document});
+  const CaseDocPermissionsSheet({super.key, required this.parentContext, required this.caseItem, required this.document});
 
   @override
   State<CaseDocPermissionsSheet> createState() => _CaseDocPermissionsSheetState();
@@ -234,31 +259,39 @@ class CaseDocPermissionsSheet extends StatefulWidget {
 class _CaseDocPermissionsSheetState extends State<CaseDocPermissionsSheet> {
   Future<void> _grantAccess(String targetWallet) async {
     final provider = Provider.of<CaseDocProvider>(context, listen: false);
+    final scaffoldMessenger = ScaffoldMessenger.of(widget.parentContext);
+    final navigator = Navigator.of(context);
+    
     final success = await provider.grantDocumentAccess(widget.caseItem.id, widget.document.id, targetWallet, true, false);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    
+    if (mounted) {
+      if (success) navigator.pop(); // Close sheet
+      scaffoldMessenger.showSnackBar(
         SnackBar(content: Text(success ? 'Access granted!' : 'Failed to grant access')),
       );
-      if (success) Navigator.pop(context); // Close sheet to let them reopen and see updated access
     }
   }
 
   Future<void> _revokeAccess(String targetWallet) async {
     final provider = Provider.of<CaseDocProvider>(context, listen: false);
+    final scaffoldMessenger = ScaffoldMessenger.of(widget.parentContext);
+    final navigator = Navigator.of(context);
+    
     final success = await provider.revokeDocumentAccess(widget.caseItem.id, widget.document.id, targetWallet);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    
+    if (mounted) {
+      if (success) navigator.pop();
+      scaffoldMessenger.showSnackBar(
         SnackBar(content: Text(success ? 'Access revoked!' : 'Failed to revoke access')),
       );
-      if (success) Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine who has access
-    final accessList = widget.document.accessControl;
-    final accessWallets = accessList.map((e) => e.wallet).toList();
+    // We do not have accessControl on Document model yet. 
+    // Defaulting to empty so we can at least show the buttons.
+    final List<String> accessWallets = [];
 
     return DraggableScrollableSheet(
       initialChildSize: 0.8,

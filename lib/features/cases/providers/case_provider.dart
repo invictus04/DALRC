@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:dapp/core/services/api_service.dart';
 import 'package:dapp/features/cases/models/case_model.dart';
+import 'package:dapp/features/cases/models/case_details_model.dart';
 import 'dart:developer';
 
 class CaseProvider with ChangeNotifier {
@@ -106,5 +107,25 @@ class CaseProvider with ChangeNotifier {
       log('Failed to migrate admin: $e');
     }
     return false;
+  }
+
+  Future<CaseDetailsModel?> fetchCaseDetails(String caseId) async {
+    try {
+      final response = await _apiService.dio.get('/api/v1/cases/$caseId');
+      if (response.statusCode == 200) {
+        final caseDetails = CaseDetailsModel.fromJson(response.data);
+        
+        final index = _cases.indexWhere((c) => c.id == caseId);
+        if (index != -1) {
+          _cases[index] = caseDetails.caseData;
+          notifyListeners();
+        }
+        
+        return caseDetails;
+      }
+    } catch (e) {
+      log('Failed to fetch case details: $e');
+    }
+    return null;
   }
 }

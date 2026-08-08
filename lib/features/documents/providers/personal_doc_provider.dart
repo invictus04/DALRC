@@ -64,7 +64,7 @@ class PersonalDocProvider with ChangeNotifier {
     } on DioException catch (e) {
       _errorOwned = e.response?.data?['message'] ?? 'Failed to fetch owned documents';
     } catch (e) {
-      _errorOwned = 'An unexpected error occurred';
+      _errorOwned = 'An unexpected error occurred $e';
     } finally {
       _isLoadingOwned = false;
       notifyListeners();

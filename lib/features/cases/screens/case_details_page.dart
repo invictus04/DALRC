@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:dapp/features/search/models/search_user_model.dart';
 import 'package:dapp/features/cases/models/case_model.dart';
+import 'package:dapp/features/cases/models/case_details_model.dart';
 import 'package:dapp/features/auth/models/user_model.dart';
 import 'package:dapp/features/cases/providers/case_provider.dart';
 import 'package:dapp/features/auth/providers/auth_provider.dart';
@@ -22,6 +23,7 @@ class CaseDetailsPage extends StatefulWidget {
 
 class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProviderStateMixin {
   late CaseModel _currentCase;
+  CaseDetailsModel? _caseDetails;
   late TabController _tabController;
 
   @override
@@ -32,8 +34,18 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
     _tabController.addListener(() {
       setState(() {});
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       Provider.of<CaseDocProvider>(context, listen: false).fetchCaseDocs(_currentCase.id);
+      
+      // Fetch latest case details
+      final provider = Provider.of<CaseProvider>(context, listen: false);
+      final latestCase = await provider.fetchCaseDetails(_currentCase.id);
+      if (latestCase != null && mounted) {
+        setState(() {
+          _caseDetails = latestCase;
+          _currentCase = latestCase.caseData;
+        });
+      }
     });
   }
 
@@ -43,15 +55,25 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
     super.dispose();
   }
 
-  void _refreshCaseLocally() {
+  void _refreshCaseLocally() async {
     final provider = Provider.of<CaseProvider>(context, listen: false);
-    final updatedCase = provider.cases.firstWhere(
-      (c) => c.id == _currentCase.id,
-      orElse: () => _currentCase,
-    );
-    setState(() {
-      _currentCase = updatedCase;
-    });
+    final latestCase = await provider.fetchCaseDetails(_currentCase.id);
+    if (latestCase != null && mounted) {
+      setState(() {
+        _caseDetails = latestCase;
+        _currentCase = latestCase.caseData;
+      });
+    } else {
+      final updatedCase = provider.cases.firstWhere(
+        (c) => c.id == _currentCase.id,
+        orElse: () => _currentCase,
+      );
+      if (mounted) {
+        setState(() {
+          _currentCase = updatedCase;
+        });
+      }
+    }
   }
 
   Future<void> _showAddParticipantDialog() async {
@@ -174,6 +196,9 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
                   onPressed: isGranting ? null : () async {
                     setState(() => isGranting = true);
                     final provider = Provider.of<CaseProvider>(context, listen: false);
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(context);
+                    
                     final success = await provider.grantAccess(
                       _currentCase.id, 
                       user.walletAddress!, 
@@ -182,9 +207,9 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
                       canUpload
                     );
                     
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (mounted) {
+                      navigator.pop();
+                      scaffoldMessenger.showSnackBar(
                         SnackBar(content: Text(success ? 'Access granted!' : 'Failed to grant access'))
                       );
                       if (success) _refreshCaseLocally();
@@ -266,12 +291,15 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
                                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white),
                                 onPressed: wallet == 'No Wallet' ? null : () async {
                                   final provider = Provider.of<CaseProvider>(context, listen: false);
+                                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                  final navigator = Navigator.of(context);
+                                  
                                   final success = await provider.migrateAdmin(_currentCase.id, wallet, user.role);
                                   
-                                  if (context.mounted) {
-                                    Navigator.pop(context); // Close dialog
-                                    Navigator.pop(context); // Go back to Home
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                  if (mounted) {
+                                    navigator.pop(); // Close dialog
+                                    navigator.pop(); // Go back to Home
+                                    scaffoldMessenger.showSnackBar(
                                       SnackBar(content: Text(success ? 'Admin migrated successfully!' : 'Migration failed'))
                                     );
                                   }
@@ -337,7 +365,14 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
                         ),
                       ),
                     ),
-                    Text('Admin: ${_currentCase.adminWallet.substring(0, 6)}...', style: GoogleFonts.inter(color: Colors.grey, fontSize: 12)),
+                    Flexible(
+                      child: Text(
+                        'Admin: ${_currentCase.adminWallet}',
+                        style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -396,11 +431,13 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
                               icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
                               onPressed: () async {
                                 final provider = Provider.of<CaseProvider>(context, listen: false);
+                                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                
                                 final success = await provider.revokeAccess(_currentCase.id, p.wallet);
                                 if (success) {
                                   _refreshCaseLocally();
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Access revoked')));
+                                  if (mounted) {
+                                    scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Access revoked')));
                                   }
                                 }
                               },
@@ -477,14 +514,23 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
                     child: Icon(Icons.description, color: Colors.blue.shade700),
                   ),
                   title: Text(doc.title, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                  subtitle: Text('${(doc.fileSize / 1024).toStringAsFixed(2)} KB • Uploader: ${doc.uploader.substring(0,6)}...', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+                  subtitle: Text(
+                    '${(doc.fileSize / 1024).toStringAsFixed(2)} KB • Uploader: ${doc.uploadedBy}',
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (_) => CaseDocOptionsSheet(caseItem: _currentCase, document: doc),
+                      builder: (_) => CaseDocOptionsSheet(
+                        parentContext: context,
+                        caseItem: _currentCase, 
+                        document: doc,
+                      ),
                     );
                   },
                 ),
@@ -500,12 +546,13 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final userWallet = auth.user?.walletAddress ?? '';
-    final isAdmin = _currentCase.adminWallet == userWallet;
+    
+    final isAdmin = _caseDetails?.permissions.isUserCaseAdmin ?? (_currentCase.adminWallet.toLowerCase() == userWallet.toLowerCase());
     
     // Check if user has upload permission
-    bool canUpload = isAdmin;
-    if (!isAdmin) {
-      final participant = _currentCase.participants.where((p) => p.wallet == userWallet).firstOrNull;
+    bool canUpload = _caseDetails?.permissions.hasUserUploadAccess ?? isAdmin;
+    if (!isAdmin && _caseDetails == null) {
+      final participant = _currentCase.participants.where((p) => p.wallet.toLowerCase() == userWallet.toLowerCase()).firstOrNull;
       if (participant != null && participant.canUpload) {
         canUpload = true;
       }
@@ -538,6 +585,7 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
       ),
       floatingActionButton: (_tabController.index == 1 && canUpload) 
           ? FloatingActionButton.extended(
+              heroTag: 'case_details_fab',
               onPressed: () {
                 showModalBottomSheet(
                   context: context,

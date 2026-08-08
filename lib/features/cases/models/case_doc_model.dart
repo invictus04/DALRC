@@ -63,7 +63,7 @@ class CaseDocModel {
       fileSize: json['fileSize'] ?? 0,
       ipfsCid: json['ipfsCid'] ?? '',
       encrypted: json['encrypted'] ?? false,
-      uploader: json['uploader'] ?? '',
+      uploader: json['uploader'] ?? json['uploadedBy'] ?? '',
       accessControl: accessList,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) 

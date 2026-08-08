@@ -14,6 +14,7 @@ import 'package:dapp/features/cases/models/audit_log_model.dart';
 import 'dart:developer';
 
 import 'package:dapp/features/search/models/search_user_model.dart';
+import 'package:dapp/core/widgets/document_viewer_page.dart';
 
 class PersonalDocumentsPage extends StatefulWidget {
   const PersonalDocumentsPage({super.key});
@@ -645,6 +646,28 @@ class _PersonalDocumentsPageState extends State<PersonalDocumentsPage>
             side: BorderSide(color: Colors.grey.shade200),
           ),
           child: ListTile(
+            onTap: () {
+              final url = doc.ipfsCid.isNotEmpty && !doc.ipfsCid.startsWith('http') 
+                  ? PinataService.getFileUrl(doc.ipfsCid) 
+                  : doc.ipfsCid;
+                  
+              if (url.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DocumentViewerPage(
+                      url: url,
+                      fileType: doc.fileType,
+                      title: doc.title,
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Document link not available')),
+                );
+              }
+            },
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 8,
@@ -749,6 +772,7 @@ class _PersonalDocumentsPageState extends State<PersonalDocumentsPage>
               ? Consumer<PersonalDocProvider>(
                 builder: (context, provider, child) {
                   return FloatingActionButton.extended(
+                    heroTag: 'personal_docs_fab',
                     onPressed: () => _showUploadDialog(context, provider),
                     icon: const Icon(Icons.upload_file),
                     label: Text(

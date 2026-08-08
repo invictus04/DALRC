@@ -6,7 +6,7 @@ class PersonalDocModel {
   final int fileSize;
   final String ipfsCid;
   final bool encrypted;
-  final String owner;
+  final String? owner;
   final DateTime createdAt;
 
   PersonalDocModel({
@@ -18,7 +18,7 @@ class PersonalDocModel {
     required this.ipfsCid,
     required this.encrypted,
     required this.createdAt,
-    required this.owner
+    this.owner
   });
 
   factory PersonalDocModel.fromJson(Map<String, dynamic> json) {

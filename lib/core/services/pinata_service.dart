@@ -36,4 +36,10 @@ class PinataService {
       return e.toString();
     }
   }
+
+
+  static String getFileUrl(String cid) {
+    final gateway = dotenv.env['PINATA_GATEWAY'] ?? 'https://gateway.pinata.cloud';
+    return '$gateway/ipfs/$cid';
+  }
 }

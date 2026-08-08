@@ -58,6 +58,9 @@ class _UploadCaseDocDialogState extends State<UploadCaseDocDialog> {
     }
 
     final provider = Provider.of<CaseDocProvider>(context, listen: false);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
     final success = await provider.uploadCaseDocument(
       widget.caseItem.id,
       _titleController.text.trim(),
@@ -65,21 +68,20 @@ class _UploadCaseDocDialogState extends State<UploadCaseDocDialog> {
       accessControl,
     );
 
+    if (!mounted) return;
     setState(() {
       _isUploading = false;
     });
 
-    if (context.mounted) {
-      Navigator.pop(context); // close bottom sheet
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Document uploaded successfully to the case!')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload document.')),
-        );
-      }
+    navigator.pop(); // close bottom sheet
+    if (success) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Document uploaded successfully to the case!')),
+      );
+    } else {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Failed to upload document.')),
+      );
     }
   }
 

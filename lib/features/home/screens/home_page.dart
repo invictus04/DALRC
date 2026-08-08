@@ -252,6 +252,7 @@ class _HomeViewState extends State<HomeView> {
                                   itemCount: caseProvider.cases.length,
                                   itemBuilder: (context, index) {
                                     final caseItem = caseProvider.cases[index];
+                                    // log(caseItem.toString());
                                     return Container(
                                       decoration: BoxDecoration(
                                         border: Border(
@@ -303,6 +304,7 @@ class _HomeViewState extends State<HomeView> {
       ),
       floatingActionButton: isSystemEmployee
           ? FloatingActionButton.extended(
+              heroTag: 'home_page_fab',
               onPressed: () {
                 Navigator.push(
                   context,

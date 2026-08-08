@@ -177,6 +177,7 @@ class _HomeViewState extends State<HomeView> {
       ),
       floatingActionButton: isSystemEmployee
           ? FloatingActionButton.extended(
+              heroTag: 'home_view_fab',
               onPressed: () {
                 Navigator.push(
                   context,

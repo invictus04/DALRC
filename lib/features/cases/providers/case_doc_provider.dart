@@ -4,17 +4,22 @@ import 'package:dio/dio.dart';
 import 'package:dapp/core/services/api_service.dart';
 import 'package:dapp/core/services/pinata_service.dart';
 import 'package:dapp/features/cases/models/case_doc_model.dart';
+import 'package:dapp/features/documents/models/get_document_model.dart';
 import 'package:dapp/features/cases/models/audit_log_model.dart';
 import 'dart:developer';
 
 class CaseDocProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
 
-  List<CaseDocModel> _documents = [];
+  List<Document> _documents = [];
+  Pagination? _pagination;
+  Filters? _filters;
   bool _isLoading = false;
   String? _error;
 
-  List<CaseDocModel> get documents => _documents;
+  List<Document> get documents => _documents;
+  Pagination? get pagination => _pagination;
+  Filters? get filters => _filters;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -25,14 +30,17 @@ class CaseDocProvider with ChangeNotifier {
 
     try {
       final response = await _apiService.dio.get('/api/v1/case-doc/$caseId');
+      // log('response: ${response.data}');
+      // log('case id :${caseId}');
       if (response.statusCode == 200) {
-        // The API returns an array of documents directly, or nested inside a key. Let's assume nested in 'documents' or 'caseDocuments' based on standard conventions.
-        // I will check common keys or direct array.
-        dynamic data = response.data['caseDocuments'] ?? response.data['documents'] ?? response.data;
-        if (data is List) {
-          _documents = data.map((e) => CaseDocModel.fromJson(e)).toList();
+        final getDocModel = GetDocumentModel.fromJson(response.data);
+        if (getDocModel.success) {
+          _documents = getDocModel.documents;
+          _pagination = getDocModel.pagination;
+          _filters = getDocModel.filters;
         } else {
           _documents = [];
+          _error = getDocModel.message;
         }
       }
     } on DioException catch (e) {
@@ -47,16 +55,15 @@ class CaseDocProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> uploadCaseDocument(
-      String caseId, String title, File file, List<Map<String, dynamic>> accessControl) async {
+  Future<bool> uploadCaseDocument( String caseId, String title, File file, List<Map<String, dynamic>> accessControl) async {
     try {
-      // 1. Upload to IPFS via Pinata
+
       log('Uploading file to Pinata IPFS...');
       final cid = await PinataService.uploadFileToPinata(file);
       if (cid == null) throw Exception('Failed to upload file to IPFS');
       log('File uploaded to Pinata IPFS with CID: $cid');
 
-      // 2. Extract file metadata
+
       final fileExtension = file.path.split('.').last.toLowerCase();
       final fileSize = await file.length();
 
@@ -121,10 +128,10 @@ class CaseDocProvider with ChangeNotifier {
     try {
       final response = await _apiService.dio.get('/api/v1/case-doc/$caseId/view/$docId');
       if (response.statusCode == 200) {
-        // Assuming the backend returns the IPFS CID or a direct URL after logging the view
-        final cid = response.data['ipfsCid'] ?? response.data['url'] ?? '';
+        final docData = response.data['sanitizedDocument'] ?? response.data;
+        final cid = docData['ipfsCid'] ?? response.data['url'] ?? '';
         if (cid.isNotEmpty && !cid.startsWith('http')) {
-          return 'https://gateway.pinata.cloud/ipfs/$cid';
+          return PinataService.getFileUrl(cid);
         }
         return cid;
       }
