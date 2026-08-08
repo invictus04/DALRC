@@ -11,7 +11,10 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-
+.password
+api_documentation.md
+api_roles_summary.md
+frontend_implementation_plan.md
 # IntelliJ related
 *.iml
 *.ipr

@@ -1,14 +1,16 @@
-import 'package:dapp/navigationbar/home_page.dart';
+import 'package:dapp/features/home/screens/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:dapp/starting_page.dart';
-import 'package:dapp/screens/auth/connect_wallet_page.dart';
-import 'package:dapp/providers/auth_provider.dart';
-import 'package:dapp/providers/user_search_provider.dart';
-import 'package:dapp/providers/personal_doc_provider.dart';
-import 'package:dapp/screens/auth/login_page.dart';
+import 'package:dapp/features/auth/screens/connect_wallet_page.dart';
+import 'package:dapp/features/auth/providers/auth_provider.dart';
+import 'package:dapp/features/search/providers/user_search_provider.dart';
+import 'package:dapp/features/documents/providers/personal_doc_provider.dart';
+import 'package:dapp/features/cases/providers/case_provider.dart';
+import 'package:dapp/features/cases/providers/case_doc_provider.dart';
+import 'package:dapp/features/auth/screens/login_page.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -25,6 +27,8 @@ void main() async {
           update: (_, auth, prev) => (prev ?? UserSearchProvider())..updateAuth(auth),
         ),
         ChangeNotifierProvider(create: (_) => PersonalDocProvider()),
+        ChangeNotifierProvider(create: (_) => CaseProvider()),
+        ChangeNotifierProvider(create: (_) => CaseDocProvider()),
       ],
       child: const MyApp(),
     ),

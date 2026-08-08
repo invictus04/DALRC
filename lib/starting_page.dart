@@ -3,10 +3,10 @@ import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:reown_appkit/reown_appkit.dart';
-import 'screens/auth/login_page.dart';
-import 'screens/auth/signup_page.dart';
-import 'providers/auth_provider.dart';
-import 'navigationbar/home_page.dart';
+import 'package:dapp/features/auth/screens/login_page.dart';
+import 'package:dapp/features/auth/screens/signup_page.dart';
+import 'package:dapp/features/auth/providers/auth_provider.dart';
+import 'package:dapp/features/home/screens/home_page.dart';
 
 class StartingPage extends StatefulWidget {
   const StartingPage({super.key});
